@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0a0b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PumpOps">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>PUMP OPS — Engine Pressure Calculator</title>
+<style>
+  :root{
+    --accent:#e10600;
+    --accent-2:#8b0000;
+    --accent-glow:rgba(225,6,0,.45);
+    --bg:#0a0a0b;
+    --bg-halo:rgba(225,6,0,.12);
+    --panel:#141416;
+    --panel-2:#1c1c1f;
+    --line:#2a2a2e;
+    --text:#f2f2f2;
+    --muted:#8f8f96;
+    --plus:#3a3a40;
+    --mark-fg:#ffffff;
+  }
+  body[data-theme="dark"]{
+    --accent:#ffffff;
+    --accent-2:#3a3a3e;
+    --accent-glow:rgba(255,255,255,.22);
+    --bg:#000000;
+    --bg-halo:rgba(255,255,255,.05);
+    --panel:#101012;
+    --panel-2:#1a1a1d;
+    --line:#26262a;
+    --text:#ffffff;
+    --muted:#8f8f96;
+    --plus:#3a3a40;
+    --mark-fg:#000000;
+  }
+  body[data-theme="light"]{
+    --accent:#111114;
+    --accent-2:#c9c9cf;
+    --accent-glow:rgba(0,0,0,.18);
+    --bg:#f5f5f7;
+    --bg-halo:rgba(0,0,0,.05);
+    --panel:#ffffff;
+    --panel-2:#ededf0;
+    --line:#dcdce1;
+    --text:#111114;
+    --muted:#6b6b73;
+    --plus:#c4c4cb;
+    --mark-fg:#ffffff;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{min-height:100%}
+  html{overflow-y:auto;-webkit-overflow-scrolling:touch}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:
+      radial-gradient(1200px 500px at 50% -10%, var(--bg-halo), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    display:flex;justify-content:center;
+    min-height:100%;
+    transition:background .25s ease, color .25s ease;
+  }
+  .app{
+    width:100%;max-width:430px;
+    display:flex;flex-direction:column;
+    min-height:100vh;
+    padding:0 16px calc(210px + env(safe-area-inset-bottom));
+  }
+  body.settings-open .app{padding-bottom:40px}
+
+  /* ---------- header ---------- */
+  header{
+    padding:22px 4px 14px;
+    display:flex;align-items:center;gap:10px;
+  }
+  .mark{
+    width:44px;height:44px;border-radius:12px;
+    background:linear-gradient(145deg,var(--accent),var(--accent-2));
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 4px 18px var(--accent-glow);
+    flex-shrink:0;
+  }
+  .mark svg{width:26px;height:26px;fill:var(--mark-fg)}
+  h1{font-size:20px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+  h1 span{color:var(--accent)}
+  .sub{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-top:2px}
+  .spacer{flex:1}
+  .icon-btn{
+    width:40px;height:40px;border-radius:12px;
+    background:var(--panel);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    color:var(--muted);cursor:pointer;
+    transition:transform .3s ease,color .2s;
+  }
+  .icon-btn:active{transform:rotate(60deg) scale(.95)}
+  .icon-btn svg{width:20px;height:20px;fill:currentColor}
+  .icon-btn:hover{color:var(--accent)}
+
+  /* ---------- sections ---------- */
+  .section-label{
+    font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--accent);margin:16px 4px 8px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .section-label::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
+
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:16px;
+    overflow:hidden;
+  }
+  .row{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0;position:relative;
+    border-bottom:1px solid var(--line);
+  }
+  .row:last-child{border-bottom:none}
+  .row label{
+    position:absolute;left:16px;top:9px;
+    font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted);pointer-events:none;
+  }
+  .row .chev{
+    position:absolute;right:14px;top:50%;transform:translateY(-50%);
+    pointer-events:none;color:var(--accent);font-size:12px;
+  }
+  select{
+    appearance:none;-webkit-appearance:none;
+    width:100%;
+    background:transparent;color:var(--text);
+    border:none;outline:none;
+    font-size:16px;font-weight:600;
+    padding:26px 40px 10px 16px;
+    cursor:pointer;
+  }
+  select:focus{background:var(--panel-2)}
+  option,optgroup{background:var(--panel-2);color:var(--text);font-weight:500}
+
+  .badge{
+    position:absolute;right:36px;top:9px;
+    font-size:10px;font-weight:700;color:var(--muted);
+    letter-spacing:.05em;
+  }
+  .badge b{color:var(--accent)}
+
+  /* ---------- result ---------- */
+  .result{
+    position:fixed;left:0;right:0;bottom:0;
+    display:flex;justify-content:center;
+    pointer-events:none;
+  }
+  body.settings-open .result{display:none}
+  .result-inner{
+    width:100%;max-width:430px;
+    background:linear-gradient(180deg,transparent,var(--bg) 30%);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border-top:1px solid var(--line);
+    padding:10px 20px calc(14px + env(safe-area-inset-bottom));
+    pointer-events:auto;
+  }
+  .breakdown{
+    display:flex;justify-content:center;gap:6px;flex-wrap:wrap;
+    font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.03em;
+    min-height:15px;
+  }
+  .breakdown b{color:var(--text)}
+  .psi-line{
+    display:flex;align-items:baseline;justify-content:center;gap:10px;
+    margin-top:2px;
+  }
+  .psi-label{
+    font-size:11px;font-weight:800;letter-spacing:.22em;color:var(--muted);text-transform:uppercase;
+  }
+  .psi-value{
+    font-size:64px;font-weight:900;line-height:1;
+    color:var(--accent);
+    text-shadow:0 0 30px var(--accent-glow);
+    font-variant-numeric:tabular-nums;
+    transition:transform .15s ease;
+  }
+  .psi-value.bump{transform:scale(1.06)}
+  .psi-unit{font-size:18px;font-weight:800;color:var(--text);letter-spacing:.1em}
+  .gpm-note{
+    text-align:center;font-size:11px;color:var(--muted);margin-top:4px;letter-spacing:.05em;
+  }
+  .gpm-note b{color:var(--text)}
+  .warn{color:#ffb020;text-align:center;font-size:11px;margin-top:3px;display:none}
+
+  footer{
+    text-align:center;font-size:10px;color:var(--muted);opacity:.6;
+    padding:18px 0 6px;letter-spacing:.05em;line-height:2;
+  }
+  .disclaimer{letter-spacing:.08em;font-weight:700}
+
+  /* ---------- first-launch disclaimer ---------- */
+  .ack-overlay{
+    position:fixed;inset:0;z-index:50;
+    display:flex;align-items:center;justify-content:center;
+    background:
+      radial-gradient(900px 500px at 50% -10%, var(--bg-halo), transparent 60%),
+      color-mix(in srgb, var(--bg) 92%, transparent);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    padding:24px;
+    animation:ackFade .4s ease;
+  }
+  .ack-overlay.dismissed{
+    opacity:0;pointer-events:none;
+    transition:opacity .35s ease;
+  }
+  @keyframes ackFade{from{opacity:0}to{opacity:1}}
+  body.locked{overflow:hidden;height:100vh}
+  .ack-card{
+    width:100%;max-width:360px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:22px;
+    padding:32px 26px 24px;
+    text-align:center;
+    box-shadow:0 24px 70px rgba(0,0,0,.55);
+    animation:ackRise .45s cubic-bezier(.2,.9,.3,1.1);
+  }
+  @keyframes ackRise{from{opacity:0;transform:translateY(26px) scale(.97)}to{opacity:1;transform:none}}
+  .ack-mark{
+    width:58px;height:58px;border-radius:16px;margin:0 auto 16px;
+    background:linear-gradient(145deg,var(--accent),var(--accent-2));
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 6px 24px var(--accent-glow);
+  }
+  .ack-mark svg{width:32px;height:32px;fill:var(--mark-fg)}
+  .ack-title{
+    font-size:22px;font-weight:900;line-height:1.2;
+    letter-spacing:.14em;text-transform:uppercase;
+  }
+  .ack-rule{
+    width:44px;height:3px;border-radius:2px;
+    background:var(--accent);margin:14px auto 16px;
+    box-shadow:0 0 12px var(--accent-glow);
+  }
+  .ack-text{
+    font-size:13px;line-height:1.65;color:var(--muted);
+    margin-bottom:12px;
+  }
+  .ack-text b{color:var(--text)}
+  .ack-btn{
+    width:100%;margin-top:8px;
+    border:none;border-radius:14px;
+    background:linear-gradient(145deg,var(--accent),var(--accent-2));
+    color:var(--mark-fg);
+    font-size:15px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+    padding:16px;cursor:pointer;
+    box-shadow:0 6px 22px var(--accent-glow);
+    transition:transform .12s ease;
+  }
+  .ack-btn:active{transform:scale(.97)}
+  .ack-note{
+    font-size:10px;color:var(--muted);opacity:.7;
+    letter-spacing:.1em;text-transform:uppercase;margin-top:12px;
+  }
+
+  /* ---------- settings + favorites pages ---------- */
+  #settingsView,#favView{display:none}
+  body.settings-open #mainView,
+  body.fav-open #mainView{display:none}
+  body.settings-open .result,
+  body.fav-open .result{display:none}
+  body.settings-open .app,
+  body.fav-open .app{padding-bottom:40px}
+  body.settings-open #settingsView{display:block;animation:slideIn .22s ease}
+  body.fav-open #favView{display:block;animation:slideIn .22s ease}
+  @keyframes slideIn{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
+
+  /* ---------- favorites ---------- */
+  .save-box{
+    display:flex;gap:8px;padding:14px 16px 16px;
+  }
+  .save-box input{
+    flex:1;min-width:0;
+    background:var(--panel-2);color:var(--text);
+    border:1px solid var(--line);border-radius:10px;
+    font-size:15px;font-weight:600;
+    padding:12px 14px;outline:none;
+  }
+  .save-box input::placeholder{color:var(--muted);font-weight:500}
+  .save-box input:focus{border-color:var(--accent)}
+  .save-btn{
+    border:none;border-radius:10px;
+    background:linear-gradient(145deg,var(--accent),var(--accent-2));
+    color:var(--mark-fg);font-size:14px;font-weight:800;letter-spacing:.06em;
+    padding:0 18px;cursor:pointer;text-transform:uppercase;
+    box-shadow:0 2px 10px var(--accent-glow);
+  }
+  .save-btn:active{transform:scale(.97)}
+  .save-preview{
+    font-size:11px;color:var(--muted);padding:0 18px 14px;line-height:1.5;
+  }
+  .save-preview b{color:var(--text)}
+  .fav-item{
+    display:flex;align-items:center;gap:12px;
+    padding:14px 16px;border-bottom:1px solid var(--line);
+    cursor:pointer;
+  }
+  .fav-item:last-child{border-bottom:none}
+  .fav-item:active{background:var(--panel-2)}
+  .fav-star{color:var(--accent);flex-shrink:0;display:flex}
+  .fav-star svg{width:18px;height:18px;fill:currentColor}
+  .fav-info{flex:1;min-width:0}
+  .fav-name{display:block;font-size:15px;font-weight:700}
+  .fav-sum{display:block;font-size:11px;color:var(--muted);margin-top:3px;line-height:1.45}
+  .fav-psi{font-size:16px;font-weight:900;color:var(--accent);flex-shrink:0}
+  .fav-psi small{font-size:9px;font-weight:700;color:var(--muted);display:block;text-align:right;letter-spacing:.1em}
+  .fav-del{
+    background:none;border:none;color:var(--muted);cursor:pointer;
+    font-size:16px;padding:6px 2px 6px 8px;flex-shrink:0;line-height:1;
+  }
+  .fav-del:hover{color:var(--accent)}
+  .fav-empty{
+    text-align:center;color:var(--muted);font-size:13px;line-height:1.6;
+    padding:22px 20px;
+  }
+  .preset-card{margin-top:12px}
+  .preset-tag{
+    display:inline-block;vertical-align:2px;
+    font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--accent);border:1px solid var(--accent);
+    border-radius:4px;padding:2px 5px;margin-left:6px;opacity:.85;
+  }
+  .restore-btn{
+    display:block;width:100%;margin-top:10px;
+    background:var(--panel);border:1px dashed var(--line);
+    border-radius:12px;padding:12px;
+    color:var(--muted);font-size:12px;font-weight:700;
+    letter-spacing:.08em;text-transform:uppercase;cursor:pointer;
+    transition:color .15s,border-color .15s;
+  }
+  .restore-btn:hover{color:var(--accent);border-color:var(--accent)}
+  .promote-btn{
+    background:none;border:none;cursor:pointer;
+    color:var(--muted);font-size:18px;line-height:1;
+    padding:6px 2px;flex-shrink:0;
+  }
+  .promote-btn:hover{color:var(--accent)}
+  .drag-handle{
+    color:var(--muted);font-size:14px;letter-spacing:-3px;
+    cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;
+    padding:8px 6px 8px 0;flex-shrink:0;
+  }
+  .fav-item.preset{transition:transform .15s ease}
+  .fav-item.dragging{
+    transition:none;position:relative;z-index:5;
+    background:var(--panel-2);
+    box-shadow:0 6px 24px rgba(0,0,0,.5), 0 0 0 1px var(--accent);
+    border-radius:12px;cursor:grabbing;
+  }
+
+  .settings-header{
+    display:flex;align-items:center;gap:10px;
+    padding:22px 0 6px;
+  }
+  .back-btn{
+    display:flex;align-items:center;gap:6px;
+    background:none;border:none;cursor:pointer;
+    color:var(--accent);font-size:15px;font-weight:700;
+    padding:8px 4px;letter-spacing:.04em;
+  }
+  .settings-title{
+    font-size:22px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+    padding:4px;margin-bottom:4px;
+  }
+  .settings-title span{color:var(--accent)}
+
+  .seg-row{
+    padding:12px 16px 16px;
+  }
+  .seg-label{
+    font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:10px;
+  }
+  .seg{
+    display:flex;gap:6px;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:12px;padding:4px;
+  }
+  .seg button{
+    flex:1;border:none;border-radius:9px;
+    background:transparent;color:var(--muted);
+    font-size:13px;font-weight:700;letter-spacing:.05em;
+    padding:10px 0;cursor:pointer;
+    transition:all .18s ease;
+  }
+  .seg button.active{
+    background:linear-gradient(145deg,var(--accent),var(--accent-2));
+    color:var(--mark-fg);
+    box-shadow:0 2px 10px var(--accent-glow);
+  }
+  .hint{
+    font-size:11px;color:var(--muted);line-height:1.5;
+    padding:10px 6px 0;
+  }
+</style>
+</head>
+<body data-theme="color">
+<div class="app">
+
+  <!-- ================= MAIN VIEW ================= -->
+  <div id="mainView">
+    <header>
+      <div class="mark">
+        <svg viewBox="0 0 24 24"><path d="M13.5 0s.8 3.2-1.3 6.4c-1.5 2.3-3.4 3.7-3.4 6.6 0 1.4.6 2.7 1.5 3.6-.1-.9.1-1.9.7-2.8.8-1.2 2-1.9 2.5-3.4 1.3 1.5 2.2 3.5 2.2 5.2 0 .4 0 .8-.1 1.2 1.6-1.2 2.9-3.2 2.9-5.4 0-4.9-3.5-6.6-3.5-11.4-.6.1-1.1.3-1.5 0zM12 24c-4.4 0-8-3.1-8-7.6 0-2.6 1.2-4.6 2.4-6.2-.1.5-.1 1-.1 1.4 0 5.1 3.5 8.7 8.2 8.7 1.8 0 3.4-.5 4.8-1.4C18 21.9 15.2 24 12 24z"/></svg>
+      </div>
+      <div>
+        <h1>PUMP<span>OPS</span></h1>
+        <div class="sub" id="deptSub">Engine Pressure Calculator</div>
+      </div>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="starBtn" aria-label="Favorites">
+        <svg viewBox="0 0 24 24"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+      </button>
+      <button class="icon-btn" id="gearBtn" aria-label="Settings">
+        <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.487.487 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+      </button>
+    </header>
+
+    <div class="section-label">Nozzle</div>
+    <div class="card">
+      <div class="row">
+        <label for="nozzle">Nozzle Size</label>
+        <span class="badge" id="nozzleBadge"></span>
+        <select id="nozzle">
+          <option value="0" data-gpm="0" data-np="0" selected>None</option>
+          <optgroup label="Handline — Fog">
+            <option value="metro1" data-gpm="150" data-np="75">Fog — Metro 1</option>
+            <option value="elkhart" data-gpm="200" data-np="75">Fog — Elkhart 205BA</option>
+            <option value="metro2" data-gpm="250" data-np="75">Fog — Metro 2</option>
+            <option value="1040" data-gpm="40" data-np="100">Fog — 10/40 Booster</option>
+          </optgroup>
+          <optgroup label="Handline — Smooth Bore (50 NP)">
+            <option value="sb1" data-gpm="200" data-np="50">1&quot; Smooth Bore</option>
+            <option value="sb118" data-gpm="250" data-np="50">1 1/8&quot; Smooth Bore</option>
+            <option value="sb114" data-gpm="325" data-np="50">1 1/4&quot; Smooth Bore</option>
+          </optgroup>
+          <optgroup label="Master Stream — Smooth Bore (80 NP)">
+            <option value="ms34" data-gpm="150" data-np="80">3/4&quot; SB Tip</option>
+            <option value="ms1" data-gpm="250" data-np="80">1&quot; SB Tip</option>
+            <option value="ms114" data-gpm="400" data-np="80" data-msfl="2">1 1/4&quot; SB Monitor</option>
+            <option value="ms112" data-gpm="600" data-np="80" data-msfl="4">1 1/2&quot; SB Monitor</option>
+            <option value="ms134" data-gpm="800" data-np="80">1 3/4&quot; SB Tip</option>
+            <option value="ms2" data-gpm="1000" data-np="80">2&quot; SB Deck Gun</option>
+          </optgroup>
+          <optgroup label="Master Stream — Fog (100 NP)">
+            <option value="fog500" data-gpm="500" data-np="100">Fog Master Stream — 500 GPM</option>
+            <option value="fog700" data-gpm="700" data-np="100">Fog Master Stream — 700 GPM</option>
+            <option value="fog1000" data-gpm="1000" data-np="100">Fog Master Stream — 1000 GPM</option>
+          </optgroup>
+          <optgroup label="Special">
+            <option value="bresnan" data-gpm="400" data-np="50">Bresnan Cellar Nozzle</option>
+          </optgroup>
+          <optgroup label="Helicopter Lay — KamLok">
+            <option value="bell412" data-gpm="360" data-np="30">Bell 412 — 360 GPM</option>
+            <option value="fhawk4" data-gpm="1000" data-np="80" data-fixed="80">Firehawk — 4&quot; Supply</option>
+            <option value="fhawk25" data-gpm="1000" data-np="125" data-fixed="125">Firehawk — 2 1/2&quot; Supply</option>
+          </optgroup>
+        </select>
+        <span class="chev">&#9662;</span>
+      </div>
+    </div>
+
+    <div class="section-label">Hose 1</div>
+    <div class="card">
+      <div class="row">
+        <label for="dia1">Hose Diameter</label>
+        <span class="badge" id="fl1Badge"></span>
+        <select id="dia1">
+          <option value="0" selected>None</option>
+          <option value="0.75">3/4&quot;</option>
+          <option value="1">1&quot;</option>
+          <option value="1.5">1 1/2&quot;</option>
+          <option value="1.75">1 3/4&quot;</option>
+          <option value="2.5">2 1/2&quot;</option>
+          <option value="3">3&quot;</option>
+          <option value="3.5">3 1/2&quot;</option>
+          <option value="4">4&quot;</option>
+        </select>
+        <span class="chev">&#9662;</span>
+      </div>
+      <div class="row">
+        <label for="len1">Hose Length</label>
+        <select id="len1"></select>
+        <span class="chev">&#9662;</span>
+      </div>
+    </div>
+
+    <div class="section-label">Hose 2</div>
+    <div class="card">
+      <div class="row">
+        <label for="dia2">Hose Diameter</label>
+        <span class="badge" id="fl2Badge"></span>
+        <select id="dia2">
+          <option value="0" selected>None</option>
+          <option value="0.75">3/4&quot;</option>
+          <option value="1">1&quot;</option>
+          <option value="1.5">1 1/2&quot;</option>
+          <option value="1.75">1 3/4&quot;</option>
+          <option value="2.5">2 1/2&quot;</option>
+          <option value="3">3&quot;</option>
+          <option value="3.5">3 1/2&quot;</option>
+          <option value="4">4&quot;</option>
+        </select>
+        <span class="chev">&#9662;</span>
+      </div>
+      <div class="row">
+        <label for="len2">Hose Length</label>
+        <select id="len2"></select>
+        <span class="chev">&#9662;</span>
+      </div>
+    </div>
+
+    <div class="section-label">Hose 3</div>
+    <div class="card">
+      <div class="row">
+        <label for="dia3">Hose Diameter</label>
+        <span class="badge" id="fl3Badge"></span>
+        <select id="dia3">
+          <option value="0" selected>None</option>
+          <option value="0.75">3/4&quot;</option>
+          <option value="1">1&quot;</option>
+          <option value="1.5">1 1/2&quot;</option>
+          <option value="1.75">1 3/4&quot;</option>
+          <option value="2.5">2 1/2&quot;</option>
+          <option value="3">3&quot;</option>
+          <option value="3.5">3 1/2&quot;</option>
+          <option value="4">4&quot;</option>
+        </select>
+        <span class="chev">&#9662;</span>
+      </div>
+      <div class="row">
+        <label for="len3">Hose Length</label>
+        <select id="len3"></select>
+        <span class="chev">&#9662;</span>
+      </div>
+    </div>
+
+    <div class="section-label">Additions</div>
+    <div class="card">
+      <div class="row">
+        <label for="appliance">Appliance 1</label>
+        <select id="appliance">
+          <option value="0" selected>None</option>
+          <option value="10">Wye / Siamese — +10 psi</option>
+          <option value="15">Ground Monitor — +15 psi</option>
+          <option value="15">Ladderpipe — +15 psi</option>
+          <option value="25">Standpipe — +25 psi</option>
+        </select>
+        <span class="chev">&#9662;</span>
+      </div>
+      <div class="row">
+        <label for="appliance2">Appliance 2</label>
+        <select id="appliance2">
+          <option value="0" selected>None</option>
+          <option value="10">Wye / Siamese — +10 psi</option>
+          <option value="15">Ground Monitor — +15 psi</option>
+          <option value="15">Ladderpipe — +15 psi</option>
+          <option value="25">Standpipe — +25 psi</option>
+        </select>
+        <span class="chev">&#9662;</span>
+      </div>
+      <div class="row">
+        <label for="elevation">Elevation</label>
+        <select id="elevation">
+          <option value="0" selected>None — Ground Level</option>
+          <optgroup label="Floors Above — +5 psi / floor" id="floorsUp"></optgroup>
+          <optgroup label="Floors Below — −5 psi / floor" id="floorsDown"></optgroup>
+          <optgroup label="Uphill — +1/2 psi / foot" id="feetUp"></optgroup>
+          <optgroup label="Downhill — −1/2 psi / foot" id="feetDown"></optgroup>
+        </select>
+        <span class="chev">&#9662;</span>
+      </div>
+    </div>
+
+    <footer>NP + FL + Appliance + Elevation = EP<br><span class="disclaimer">*DISCLAIMER - FOR TRAINING PURPOSES ONLY</span></footer>
+  </div>
+
+  <!-- ================= SETTINGS VIEW ================= -->
+  <div id="settingsView">
+    <div class="settings-header">
+      <button class="back-btn" id="backBtn">&#8592;&nbsp;Back</button>
+    </div>
+    <div class="settings-title">Set<span>tings</span></div>
+
+    <div class="section-label">Calculations</div>
+    <div class="card">
+      <div class="row">
+        <label for="department">Department</label>
+        <select id="department">
+          <option value="lacofd" selected>LACoFD</option>
+          <option value="generic">Generic</option>
+        </select>
+        <span class="chev">&#9662;</span>
+      </div>
+    </div>
+    <div class="hint">Sets which department's hydraulic values are used for friction loss, nozzle pressures, and appliance losses.</div>
+
+    <div class="section-label">Appearance</div>
+    <div class="card">
+      <div class="seg-row">
+        <div class="seg-label">Theme</div>
+        <div class="seg" id="themeSeg">
+          <button data-mode="color" class="active">Color</button>
+          <button data-mode="dark">Dark</button>
+          <button data-mode="light">Light</button>
+        </div>
+      </div>
+    </div>
+    <div class="hint">Color — red &amp; black. Dark — black with white &amp; grey. Light — white with black &amp; grey.</div>
+  </div>
+
+  <!-- ================= FAVORITES VIEW ================= -->
+  <div id="favView">
+    <div class="settings-header">
+      <button class="back-btn" id="favBackBtn">&#8592;&nbsp;Back</button>
+    </div>
+    <div class="settings-title">Favor<span>ites</span></div>
+
+    <div class="section-label">Save Current Lay</div>
+    <div class="card">
+      <div class="save-box">
+        <input type="text" id="favName" maxlength="30" placeholder="Name this hose lay&hellip;">
+        <button class="save-btn" id="saveFavBtn">Save</button>
+      </div>
+      <div class="save-preview" id="savePreview"></div>
+    </div>
+
+    <div class="section-label">Saved Lays</div>
+    <div id="favList"></div>
+    <button class="restore-btn" id="restorePresetsBtn" style="display:none">Restore Presets</button>
+    <div class="hint" id="favHint">Tap a saved lay to load it on the calculator. Saved lays live here under the star.</div>
+  </div>
+</div>
+
+<!-- ================= FIRST-LAUNCH DISCLAIMER ================= -->
+<div class="ack-overlay" id="ackOverlay">
+  <div class="ack-card">
+    <div class="ack-mark">
+      <svg viewBox="0 0 24 24"><path d="M13.5 0s.8 3.2-1.3 6.4c-1.5 2.3-3.4 3.7-3.4 6.6 0 1.4.6 2.7 1.5 3.6-.1-.9.1-1.9.7-2.8.8-1.2 2-1.9 2.5-3.4 1.3 1.5 2.2 3.5 2.2 5.2 0 .4 0 .8-.1 1.2 1.6-1.2 2.9-3.2 2.9-5.4 0-4.9-3.5-6.6-3.5-11.4-.6.1-1.1.3-1.5 0zM12 24c-4.4 0-8-3.1-8-7.6 0-2.6 1.2-4.6 2.4-6.2-.1.5-.1 1-.1 1.4 0 5.1 3.5 8.7 8.2 8.7 1.8 0 3.4-.5 4.8-1.4C18 21.9 15.2 24 12 24z"/></svg>
+    </div>
+    <div class="ack-title">For Training<br>Purposes Only</div>
+    <div class="ack-rule"></div>
+    <p class="ack-text">
+      This app is a <b>training reference</b> for pump operation calculations.
+      It is not a substitute for department policy, certified training, or
+      fireground judgment.
+    </p>
+    <p class="ack-text">
+      Always verify pressures against your department's current procedures
+      and equipment. The developer assumes no liability for use of these
+      calculations in live operations.
+    </p>
+    <button class="ack-btn" id="ackBtn">I Understand &amp; Agree</button>
+    <div class="ack-note">One-time acknowledgment</div>
+  </div>
+</div>
+
+<!-- ================= RESULT BAR ================= -->
+<div class="result">
+  <div class="result-inner">
+    <div class="breakdown" id="breakdown"></div>
+    <div class="psi-line">
+      <span class="psi-label">Pump To</span>
+      <span class="psi-value" id="psi">0</span>
+      <span class="psi-unit">PSI</span>
+    </div>
+    <div class="gpm-note" id="gpmNote"></div>
+    <div class="warn" id="warn">&#9888; Exceeds typical pump pressure — check layout</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---- persistent device storage (native build) ---- */
+  var store = {
+    get: function(k){ try { return JSON.parse(window.localStorage.getItem(k)); } catch(e){ return null; } },
+    set: function(k, v){ try { window.localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+  };
+  var saved = store.get("pumpops-state") || {};
+
+  /* ================= state ================= */
+  var settings = {
+    department: saved.department || "lacofd",
+    theme: saved.theme || "color"
+  };
+
+  /* ------- friction loss engine -------
+     Base: FL per 100' of 2-1/2" = 2Q^2 + Q  (Q = GPM/100)
+           below 100 GPM        = 2Q^2 + Q/2
+     Other diameters: multiply by conversion factor.
+     Department-card exact values override the formula
+     for small-line combos where the card differs.
+     DEPT_DATA keyed by department — LACoFD and Generic
+     share values for now.                              */
+
+  var DEPT_DATA = {
+    lacofd: {
+      factors: {"0.75":24, "1":11, "1.5":4, "1.75":2, "2.5":1, "3":0.6, "3.5":0.4, "4":0.2},
+      overrides: {
+        "1":    {40:45},
+        "1.5":  {40:7},
+        "1.75": {150:21, 200:36},
+        "2.5":  {325:25, 360:30}
+      }
+    }
+  };
+  DEPT_DATA.generic = DEPT_DATA.lacofd;
+
+  function fl100(dia, gpm){
+    var data = DEPT_DATA[settings.department] || DEPT_DATA.lacofd;
+    var d = String(dia);
+    if(data.overrides[d] && data.overrides[d][gpm] !== undefined) return data.overrides[d][gpm];
+    var q = gpm/100;
+    var base = (gpm >= 100) ? (2*q*q + q) : (2*q*q + q/2);
+    return base * (data.factors[d] || 1);
+  }
+
+  /* ------- populate length dropdowns ------- */
+  function fillLengths(sel){
+    var html = '<option value="0" selected>None</option>';
+    for(var ft=50; ft<=1200; ft+=50){
+      html += '<option value="'+ft+'">'+ft+"'</option>";
+    }
+    sel.innerHTML = html;
+  }
+  fillLengths(document.getElementById("len1"));
+  fillLengths(document.getElementById("len2"));
+  fillLengths(document.getElementById("len3"));
+
+  /* ------- populate elevation ------- */
+  function opt(v, label){ return '<option value="'+v+'">'+label+"</option>"; }
+  var fu="", fd="", eu="", ed="", i;
+  for(i=1;i<=15;i++){ fu += opt(i*5,  "Up "+i+" Floor"+(i>1?"s":"")+" — +"+(i*5)+" psi"); }
+  for(i=1;i<=5;i++){  fd += opt(-i*5, "Down "+i+" Floor"+(i>1?"s":"")+" — −"+(i*5)+" psi"); }
+  for(i=10;i<=200;i+=10){ eu += opt(i/2,  "Up "+i+"' — +"+(i/2)+" psi"); }
+  for(i=10;i<=200;i+=10){ ed += opt(-i/2, "Down "+i+"' — −"+(i/2)+" psi"); }
+  document.getElementById("floorsUp").innerHTML = fu;
+  document.getElementById("floorsDown").innerHTML = fd;
+  document.getElementById("feetUp").innerHTML = eu;
+  document.getElementById("feetDown").innerHTML = ed;
+
+  /* ------- calc + render ------- */
+  var $ = function(id){ return document.getElementById(id); };
+  var els = ["nozzle","dia1","len1","dia2","len2","dia3","len3","appliance","appliance2","elevation"].map($);
+
+  function round1(x){ return Math.round(x*10)/10; }
+  function fmt(x){ x = round1(x); return (x % 1 === 0) ? String(x) : x.toFixed(1); }
+
+  function calc(){
+    var nOpt = $("nozzle").selectedOptions[0];
+    var gpm = +nOpt.dataset.gpm;
+    var np  = +nOpt.dataset.np;
+    var msfl = nOpt.dataset.msfl ? +nOpt.dataset.msfl : null;
+    var fixed = nOpt.dataset.fixed ? +nOpt.dataset.fixed : null;
+
+    var d1 = $("dia1").value, l1 = +$("len1").value;
+    var d2 = $("dia2").value, l2 = +$("len2").value;
+    var d3 = $("dia3").value, l3 = +$("len3").value;
+
+    /* Akron Apollo monitor lays use card FL (2 or 4 per 100') on 3" */
+    var f1 = 0, fl1 = 0;
+    if(+d1 > 0 && l1 > 0 && gpm > 0){
+      f1 = (msfl !== null && d1==="3") ? msfl : fl100(d1, gpm);
+      fl1 = f1 * l1/100;
+    }
+
+    var fl2 = 0, f2 = 0;
+    if(+d2 > 0 && l2 > 0 && gpm > 0){
+      f2 = (msfl !== null && d2==="3") ? msfl : fl100(d2, gpm);
+      fl2 = f2 * l2/100;
+    }
+
+    var fl3 = 0, f3 = 0;
+    if(+d3 > 0 && l3 > 0 && gpm > 0){
+      f3 = (msfl !== null && d3==="3") ? msfl : fl100(d3, gpm);
+      fl3 = f3 * l3/100;
+    }
+
+    var app = (parseInt($("appliance").value, 10) || 0) + (parseInt($("appliance2").value, 10) || 0);
+    var elev = parseFloat($("elevation").value) || 0;
+
+    var total;
+    if(fixed !== null){
+      total = fixed;
+      fl1 = fl2 = fl3 = 0;
+    } else {
+      total = np + fl1 + fl2 + fl3 + app + elev;
+    }
+    if(total < 0) total = 0;
+
+    /* render */
+    $("nozzleBadge").innerHTML = gpm ? (fixed !== null ? gpm+" GPM • <b>Fixed EP</b>" : gpm+" GPM @ <b>"+np+" NP</b>") : "";
+    $("fl1Badge").innerHTML = (gpm && +d1>0 && fixed===null) ? "FL <b>"+fmt(f1)+"</b>/100'" : "";
+    $("fl2Badge").innerHTML = (gpm && +d2>0 && l2>0 && fixed===null) ? "FL <b>"+fmt(f2)+"</b>/100'" : "";
+    $("fl3Badge").innerHTML = (gpm && +d3>0 && l3>0 && fixed===null) ? "FL <b>"+fmt(f3)+"</b>/100'" : "";
+
+    var parts = [];
+    if(fixed !== null){
+      parts.push("<b>"+fixed+"</b> Fixed Engine Pressure");
+    } else {
+      if(np) parts.push("<b>"+np+"</b> NP");
+      if(fl1) parts.push("<b>"+fmt(fl1)+"</b> FL");
+      if(fl2) parts.push("<b>"+fmt(fl2)+"</b> FL2");
+      if(fl3) parts.push("<b>"+fmt(fl3)+"</b> FL3");
+      if(app) parts.push("<b>"+app+"</b> APP");
+      if(elev) parts.push("<b>"+(elev>0?"+":"−")+fmt(Math.abs(elev))+"</b> ELEV");
+    }
+    $("breakdown").innerHTML = parts.length ? parts.join(' <span style="color:var(--plus)">+</span> ') : "Make selections to build the equation";
+
+    var psiEl = $("psi");
+    psiEl.textContent = Math.round(total);
+    psiEl.classList.remove("bump");
+    void psiEl.offsetWidth;
+    psiEl.classList.add("bump");
+
+    $("gpmNote").innerHTML = gpm ? "Flowing <b>"+gpm+" GPM</b>" : "Select a nozzle to begin";
+    $("warn").style.display = (total > 250) ? "block" : "none";
+  }
+
+  els.forEach(function(el){ el.addEventListener("change", calc); });
+
+  /* ================= settings page ================= */
+  $("gearBtn").addEventListener("click", function(){
+    document.body.classList.remove("fav-open");
+    document.body.classList.add("settings-open");
+    window.scrollTo(0,0);
+  });
+  $("backBtn").addEventListener("click", function(){
+    document.body.classList.remove("settings-open");
+    window.scrollTo(0,0);
+  });
+
+  $("department").addEventListener("change", function(){
+    settings.department = this.value;
+    $("deptSub").textContent = (this.value === "lacofd" ? "LACoFD" : "Generic") + " • Engine Pressure Calculator";
+    calc();
+    persist();
+  });
+
+  var seg = $("themeSeg");
+  seg.addEventListener("click", function(e){
+    var btn = e.target.closest("button");
+    if(!btn) return;
+    settings.theme = btn.dataset.mode;
+    document.body.dataset.theme = settings.theme;
+    persist();
+    Array.prototype.forEach.call(seg.children, function(b){
+      b.classList.toggle("active", b === btn);
+    });
+  });
+
+  /* ================= favorites ================= */
+  var FIELDS = ["nozzle","dia1","len1","dia2","len2","dia3","len3","appliance","appliance2","elevation"];
+  function vals(o){
+    var v = {nozzle:"0",dia1:"0",len1:"0",dia2:"0",len2:"0",dia3:"0",len3:"0",appliance:"0",appliance2:"0",elevation:"0"};
+    for(var k in o) v[k] = o[k];
+    return v;
+  }
+  /* built-in presets — user lays + helicopter lays from the department hydraulic card */
+  var PRESETS = [
+    { name:"100' Stringer", preset:true, psi:"96",
+      summary:"Fog Metro 1 • 100' of 1 3/4\"",
+      values: vals({nozzle:"metro1", dia1:"1.75", len1:"100"}) },
+    { name:"150' Metro 1", preset:true, psi:"107",
+      summary:"Fog Metro 1 • 150' of 1 3/4\"",
+      values: vals({nozzle:"metro1", dia1:"1.75", len1:"150"}) },
+    { name:"200' Metro 2", preset:true, psi:"105",
+      summary:"Fog Metro 2 • 200' of 2 1/2\"",
+      values: vals({nozzle:"metro2", dia1:"2.5", len1:"200"}) },
+    { name:"300' Metro 1", preset:true, psi:"138",
+      summary:"Fog Metro 1 • 300' of 1 3/4\"",
+      values: vals({nozzle:"metro1", dia1:"1.75", len1:"300"}) },
+    { name:"Cudahy Lay", preset:true, psi:"141",
+      summary:"Fog Elkhart 205BA • 200' of 2 1/2\" • 100' of 1 3/4\" • Wye / Siamese",
+      values: vals({nozzle:"elkhart", dia1:"2.5", len1:"200", dia2:"1.75", len2:"100", appliance:"10"}) },
+    { name:"Blitz Force", preset:true, psi:"220",
+      summary:"Fog Master Stream 500 GPM • 200' of 2 1/2\" • Wye / Siamese",
+      values: vals({nozzle:"fog500", dia1:"2.5", len1:"200", appliance:"10"}) },
+    { name:"Heli — Bell 412 KamLok", preset:true, psi:"90",
+      summary:"360 GPM • 30 psi @ wye + 30 psi per 100' of 2 1/2\" (200' shown — adjust length)",
+      values: vals({nozzle:"bell412", dia1:"2.5", len1:"200"}) },
+    { name:"Heli — Firehawk, 4\" Supply", preset:true, psi:"80",
+      summary:"Pump 80 psi with 4\" supply to KamLok",
+      values: vals({nozzle:"fhawk4", dia1:"4", len1:"100"}) },
+    { name:"Heli — Firehawk, 2 1/2\" Supply", preset:true, psi:"125",
+      summary:"Pump 125 psi with 2 1/2\" supply to KamLok",
+      values: vals({nozzle:"fhawk25", dia1:"2.5", len1:"100"}) }
+  ];
+  var deletedPresets = saved.deletedPresets || {};
+  (saved.promoted || []).forEach(function(p){
+    if(!PRESETS.some(function(x){ return x.name === p.name; })) PRESETS.push(p);
+  });
+  if(saved.presetOrder && saved.presetOrder.length){
+    PRESETS.sort(function(a, b){
+      var ia = saved.presetOrder.indexOf(a.name), ib = saved.presetOrder.indexOf(b.name);
+      return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
+    });
+  }
+  var favorites = saved.favorites || [];
+
+  function persist(){
+    saved.department = settings.department;
+    saved.theme = settings.theme;
+    saved.favorites = favorites;
+    saved.deletedPresets = deletedPresets;
+    saved.promoted = PRESETS.filter(function(p){ return p.userAdded; });
+    saved.presetOrder = PRESETS.map(function(p){ return p.name; });
+    store.set("pumpops-state", saved);
+  }
+
+  function currentSummary(){
+    var nOpt = $("nozzle").selectedOptions[0];
+    var bits = [];
+    if(nOpt.value !== "0") bits.push(nOpt.text.replace(/\s+—\s+/g," "));
+    [["dia1","len1"],["dia2","len2"],["dia3","len3"]].forEach(function(p){
+      var d=$(p[0]), l=$(p[1]);
+      if(+d.value>0 && +l.value>0) bits.push(l.value+"' of "+d.selectedOptions[0].text.replace(/&quot;/g,'"'));
+    });
+    ["appliance","appliance2"].forEach(function(id){
+      var s=$(id);
+      if(s.value!=="0") bits.push(s.selectedOptions[0].text.split(" — ")[0]);
+    });
+    if($("elevation").value!=="0") bits.push($("elevation").selectedOptions[0].text.split(" — ")[0]);
+    return bits.join(" • ") || "Nothing selected yet";
+  }
+
+  function escapeHtml(s){
+    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
+  function favRow(f, idx, isPreset){
+    return '<div class="fav-item'+(isPreset?' preset':'')+'" data-'+(isPreset?'pidx':'idx')+'="'+idx+'">'
+      + (isPreset ? '<span class="drag-handle" aria-label="Drag to reorder">&#8942;&#8942;</span>' : '')
+      + '<span class="fav-star"><svg viewBox="0 0 24 24"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg></span>'
+      + '<span class="fav-info"><span class="fav-name">'+escapeHtml(f.name)
+      + (isPreset ? ' <span class="preset-tag">Preset</span>' : '')+'</span>'
+      + '<span class="fav-sum">'+escapeHtml(f.summary)+'</span></span>'
+      + '<span class="fav-psi">'+f.psi+'<small>PSI</small></span>'
+      + (isPreset ? '' : '<button class="promote-btn" data-promote="'+idx+'" title="Make preset" aria-label="Make preset">&#9734;</button>')
+      + '<button class="fav-del" data-'+(isPreset?'pdel':'del')+'="'+idx+'" aria-label="Delete">&#10005;</button>'
+      + '</div>';
+  }
+
+  function renderFavs(){
+    var userHtml = "";
+    favorites.forEach(function(f, idx){ userHtml += favRow(f, idx, false); });
+    if(!favorites.length){
+      userHtml = '<div class="fav-empty">No saved lays of your own yet.<br>Set up a lay on the calculator, then name and save it here.</div>';
+    }
+    var presetHtml = "", hiddenCount = 0;
+    PRESETS.forEach(function(f, idx){
+      if(deletedPresets[f.name]){ hiddenCount++; return; }
+      presetHtml += favRow(f, idx, true);
+    });
+    var html = '<div class="card">' + userHtml + '</div>';
+    if(presetHtml) html += '<div class="card preset-card">' + presetHtml + '</div>';
+    $("favList").innerHTML = html;
+    var rb = $("restorePresetsBtn");
+    rb.style.display = hiddenCount ? "block" : "none";
+    rb.textContent = "Restore Presets ("+hiddenCount+")";
+  }
+
+  function updateSavePreview(){
+    $("savePreview").innerHTML = "Saving: <b>"+escapeHtml(currentSummary())+"</b> &nbsp;&rarr;&nbsp; <b>"+$("psi").textContent+" PSI</b>";
+  }
+
+  $("starBtn").addEventListener("click", function(){
+    document.body.classList.remove("settings-open");
+    document.body.classList.add("fav-open");
+    updateSavePreview();
+    renderFavs();
+    window.scrollTo(0,0);
+  });
+  $("favBackBtn").addEventListener("click", function(){
+    document.body.classList.remove("fav-open");
+    window.scrollTo(0,0);
+  });
+
+  $("saveFavBtn").addEventListener("click", function(){
+    var name = $("favName").value.trim();
+    if(!name) name = "Lay "+(favorites.length+1);
+    var vals = {};
+    FIELDS.forEach(function(id){ vals[id] = $(id).value; });
+    favorites.unshift({
+      name: name,
+      values: vals,
+      summary: currentSummary(),
+      psi: $("psi").textContent
+    });
+    $("favName").value = "";
+    renderFavs();
+    persist();
+  });
+
+  $("restorePresetsBtn").addEventListener("click", function(){
+    deletedPresets = {};
+    renderFavs();
+    persist();
+  });
+
+  $("favList").addEventListener("click", function(e){
+    if(dragMoved){ dragMoved = false; return; }
+    if(e.target.closest(".drag-handle")) return;
+    var del = e.target.closest("[data-del]");
+    if(del){
+      favorites.splice(+del.dataset.del, 1);
+      renderFavs();
+      persist();
+      return;
+    }
+    var pdel = e.target.closest("[data-pdel]");
+    if(pdel){
+      deletedPresets[PRESETS[+pdel.dataset.pdel].name] = true;
+      renderFavs();
+      persist();
+      return;
+    }
+    var pro = e.target.closest("[data-promote]");
+    if(pro){
+      var moved = favorites.splice(+pro.dataset.promote, 1)[0];
+      moved.preset = true;
+      moved.userAdded = true;
+      PRESETS.push(moved);
+      renderFavs();
+      persist();
+      return;
+    }
+    var item = e.target.closest(".fav-item");
+    if(!item) return;
+    var f = item.dataset.pidx !== undefined ? PRESETS[+item.dataset.pidx] : favorites[+item.dataset.idx];
+    if(!f) return;
+    FIELDS.forEach(function(id){ $(id).value = f.values[id]; });
+    calc();
+    document.body.classList.remove("fav-open");
+    window.scrollTo(0,0);
+  });
+
+  /* --- drag presets to reorder --- */
+  var drag = null, dragMoved = false;
+
+  $("favList").addEventListener("pointerdown", function(e){
+    var handle = e.target.closest(".drag-handle");
+    if(!handle) return;
+    var item = handle.closest(".fav-item.preset");
+    if(!item) return;
+    e.preventDefault();
+    var card = item.parentElement;
+    var rows = Array.prototype.slice.call(card.querySelectorAll(".fav-item.preset"));
+    drag = {
+      item: item,
+      rows: rows,
+      rects: rows.map(function(r){ return r.getBoundingClientRect(); }),
+      origIndex: rows.indexOf(item),
+      startY: e.clientY,
+      target: rows.indexOf(item)
+    };
+    item.classList.add("dragging");
+  });
+
+  document.addEventListener("pointermove", function(e){
+    if(!drag) return;
+    var dy = e.clientY - drag.startY;
+    if(Math.abs(dy) > 4) dragMoved = true;
+    drag.item.style.transform = "translateY("+dy+"px)";
+
+    /* insertion slot = how many other rows' midpoints are above the pointer */
+    var t = 0;
+    drag.rects.forEach(function(rect, i){
+      if(i === drag.origIndex) return;
+      if(e.clientY > rect.top + rect.height/2) t++;
+    });
+    drag.target = t;
+
+    var h = drag.rects[drag.origIndex].height;
+    drag.rows.forEach(function(r, i){
+      if(r === drag.item) return;
+      var shift = 0;
+      var without = (i < drag.origIndex) ? i : i-1;   /* index if dragged row removed */
+      if(without >= t) shift = h;                      /* pushed down by insertion */
+      if(i > drag.origIndex) shift -= h;               /* pulled up by removal */
+      r.style.transform = shift ? "translateY("+shift+"px)" : "";
+    });
+  });
+
+  document.addEventListener("pointerup", function(){
+    if(!drag) return;
+    var visible = drag.rows.map(function(r){ return PRESETS[+r.dataset.pidx]; });
+    var moved = visible.splice(drag.origIndex, 1)[0];
+    visible.splice(drag.target, 0, moved);
+    var hidden = PRESETS.filter(function(p){ return deletedPresets[p.name]; });
+    PRESETS = visible.concat(hidden);
+    drag.rows.forEach(function(r){ r.style.transform = ""; r.classList.remove("dragging"); });
+    drag = null;
+    renderFavs();
+    persist();
+  });
+
+  /* ================= first-launch acknowledgment (one-time) ================= */
+  if(saved.acknowledged){
+    $("ackOverlay").style.display = "none";
+  } else {
+    document.body.classList.add("locked");
+  }
+  $("ackBtn").addEventListener("click", function(){
+    saved.acknowledged = true;
+    persist();
+    var ov = $("ackOverlay");
+    ov.classList.add("dismissed");
+    document.body.classList.remove("locked");
+    setTimeout(function(){ ov.style.display = "none"; }, 400);
+  });
+
+  /* init — apply restored settings */
+  document.body.dataset.theme = settings.theme;
+  Array.prototype.forEach.call(seg.children, function(b){
+    b.classList.toggle("active", b.dataset.mode === settings.theme);
+  });
+  $("department").value = settings.department;
+  $("deptSub").textContent = (settings.department === "lacofd" ? "LACoFD" : "Generic") + " • Engine Pressure Calculator";
+  calc();
+})();
+</script>
+</body>
+</html>
